@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+From Stdlib Require Import Lists.List.
 Set Implicit Arguments.
 
 (** Streams *)
@@ -169,6 +170,65 @@ Qed.
 End Co_Induction_ForAll.
 
 End Stream_Properties.
+
+(* Facts relating streams to lists *)
+
+Fixpoint Str_firstn (n : nat) (s : Stream) : list A :=
+  match s, n with
+  | Cons a rest, S n' => a :: Str_firstn n' rest
+  | Cons a rest, O => nil
+  end.
+
+Fixpoint and_then (l : list A) (s : Stream) : Stream :=
+  match l with
+  | nil => s
+  | cons a l' => Cons a (and_then l' s)
+  end.
+
+Lemma Str_nth_tl_and_then (l : list A) s :
+  Str_nth_tl (length l) (and_then l s) = s.
+Proof. revert s. induction l; auto. Qed.
+
+Lemma length_Str_firstn n (s : Stream) : length (Str_firstn n s) = n.
+Proof.
+  revert s. induction n; destruct s; [reflexivity|]. simpl. f_equal. auto.
+Qed.
+
+Lemma firstn_Str_firstn m n (s : Stream) :
+  firstn m (Str_firstn n s) = Str_firstn (Nat.min m n) s.
+Proof.
+  revert m s. induction n; intros m s.
+  - simpl. destruct s. rewrite PeanoNat.Nat.min_0_r. destruct m; reflexivity.
+  - simpl. destruct s. destruct m; [reflexivity|]. simpl. f_equal. auto.
+Qed.
+
+Lemma Str_nth_and_then (l : list A) s n :
+  Str_nth n (and_then l s) = match nth_error l n with
+                             | Some x => x
+                             | None => Str_nth (n - length l) s
+                             end.
+Proof.
+  revert n. induction l; intros n.
+  - destruct n; reflexivity.
+  - simpl. destruct n; [reflexivity|]. simpl.
+    cbv [Str_nth] in *. simpl. auto.
+Qed.
+
+Lemma and_then_and_then (l1 l2 : list A) s :
+  and_then l1 (and_then l2 s) = and_then (l1 ++ l2) s.
+Proof.
+  induction l1.
+  - reflexivity.
+  - simpl. f_equal. assumption.
+Qed.
+
+Lemma Str_firstn_plus_m n m (s : Stream) :
+  Str_firstn n s ++ Str_firstn m (Str_nth_tl n s) = Str_firstn (n + m) s.
+Proof.
+  revert s. induction n; intros s.
+  - destruct s. simpl. reflexivity.
+  - destruct s. simpl. f_equal. auto.
+Qed.
 
 End Streams.
 
